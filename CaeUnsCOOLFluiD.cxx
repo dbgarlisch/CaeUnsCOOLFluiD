@@ -209,10 +209,14 @@ CaeUnsCOOLFluiD::writeHeaderElemCntDetails(const PWGM_ELEMCOUNTS &details)
     //!NB_STATES_PER_TYPE #listOf(nbLinesS|nbTriagS|nbQuadS|nbTetraS|nbPyramS|nbPrismS|nbHexaS)
 
     PWP_UINT32 nbElemTypes = 0;
-    std::ostringstream elemTypes("!ELEM_TYPES");
-    std::ostringstream nbElemPerType("!NB_ELEM_PER_TYPE");
-    std::ostringstream nbNodesPerType("!NB_NODES_PER_TYPE");
-    std::ostringstream nbStatesPerType("!NB_STATES_PER_TYPE");
+    std::ostringstream elemTypes;
+    std::ostringstream nbElemPerType;
+    std::ostringstream nbNodesPerType;
+    std::ostringstream nbStatesPerType;
+    elemTypes << "!ELEM_TYPES";
+    nbElemPerType << "!NB_ELEM_PER_TYPE";
+    nbNodesPerType << "!NB_NODES_PER_TYPE";
+    nbStatesPerType << "!NB_STATES_PER_TYPE";
     if (isDimension3D()) {
         if (0 != PWGM_ECNT_Hex(details)) {
             ++nbElemTypes;
