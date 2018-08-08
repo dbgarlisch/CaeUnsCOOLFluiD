@@ -45,13 +45,14 @@ private:
     virtual PWP_UINT32 streamFace(const PWGM_FACESTREAM_DATA &data);
     virtual PWP_UINT32 streamEnd(const PWGM_ENDSTREAM_DATA &data);
 
-    bool    writeHeader();
-    bool    writeHeaderElemCntDetails(const PWGM_ELEMCOUNTS &details);
-    bool    writeNodes();
-    bool    writeElements();
-    bool    writeTopoRegionSets();
-    bool    writeListState();
-    bool    writeFooter();
+    bool            writeHeader();
+    bool            writeHeaderElemCntDetails(const PWGM_ELEMCOUNTS &details);
+    bool            writeNodes();
+    bool            writeElements();
+    bool            writeTopoRegionSets();
+    bool            writeListState();
+    bool            writeFooter();
+    const char *    makeTRSName(const PWGM_CONDDATA &cond) const;
 
     template<typename T>
     inline bool

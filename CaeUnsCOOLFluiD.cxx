@@ -134,9 +134,8 @@ PWP_BOOL
 CaeUnsCOOLFluiD::write()
 {
     return (writeHeader() && writeElements() && writeTopoRegionSets() &&
-        writeNodes() && writeListState() && writeFooter())
-            ? PWP_TRUE
-            : ((rti_.opAborted = true), PWP_FALSE);
+        writeNodes() && writeListState() && writeFooter()) ? PWP_TRUE :
+        ((rti_.opAborted = true), PWP_FALSE);
 }
 
 bool
@@ -376,6 +375,18 @@ CaeUnsCOOLFluiD::writeFooter()
 }
 
 
+const char *
+CaeUnsCOOLFluiD::makeTRSName(const PWGM_CONDDATA &cond) const
+{
+    static std::string ret;
+    ret = cond.name;
+    ret += '_';
+    ret += cond.type;
+    // return ptr only valid until next call
+    return ret.c_str();
+}
+
+
 
 //===========================================================================
 // face streaming handlers
@@ -387,6 +398,7 @@ CaeUnsCOOLFluiD::streamBegin(const PWGM_BEGINSTREAM_DATA &data)
     patchId_ = PWP_UINT32_MAX;
     return PWP_CAST_BOOL(progressBeginStep(data.totalNumFaces));
 }
+
 
 PWP_UINT32
 CaeUnsCOOLFluiD::streamFace(const PWGM_FACESTREAM_DATA &data)
@@ -403,7 +415,7 @@ CaeUnsCOOLFluiD::streamFace(const PWGM_FACESTREAM_DATA &data)
         CaeUnsPatch patch(data.owner.domain);
         PWGM_CONDDATA cond;
         ret = patch.condition(cond) &&
-            writeCmd("!TRS_NAME", cond.name) &&
+            writeCmd("!TRS_NAME", makeTRSName(cond)) &&
             writeCmd("!NB_TRs", (PWP_UINT)1) &&
             writeCmd("!NB_GEOM_ENTS", patch.elementCount()) &&
             rtFile_.write("!GEOM_TYPE Face\n") &&

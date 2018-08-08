@@ -42,8 +42,8 @@
 
     /*== CAEP_BCINFO*    pBCInfo;    -- array of format BCs or NULL */
     /*== PWP_UINT32      BCCnt;      -- # format BCs */
-    0, //CaeUnsCOOLFluiDBCInfo,            /* CAEP_BCINFO* */
-    0, //ARRAYSIZE(CaeUnsCOOLFluiDBCInfo), /* PWP_UINT32 BCCnt */
+    CaeUnsCOOLFluiDBCInfo,            /* CAEP_BCINFO* */
+    ARRAYSIZE(CaeUnsCOOLFluiDBCInfo), /* PWP_UINT32 BCCnt */
 
     /*== CAEP_VCINFO*    pVCInfo;    -- array of format VCs or NULL */
     /*== PWP_UINT32      VCCnt;      -- # format VCs */
