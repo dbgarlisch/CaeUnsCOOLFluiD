@@ -49,6 +49,7 @@ private:
     bool            writeHeaderElemCntDetails(const PWGM_ELEMCOUNTS &details);
     bool            writeNodes();
     bool            writeElements();
+    bool            writeElement(const PWGM_ELEMDATA &ed, const PWP_UINT32 eNdx);
     bool            writeTopoRegionSets();
     bool            writeListState();
     bool            writeFooter();
@@ -58,22 +59,74 @@ private:
     inline bool
     writeCmd(const char *cmd, const T v)
     {
-        return rtFile_.write(cmd) && rtFile_.write(v, "\n", " ");
+        const PWP_INT wd = (isAsciiEncoding() ? -1 : 30);
+        return rtFile_.write(cmd, wd, ' ') && rtFile_.write(v, 0, " ") &&
+            rtFile_.write("\n");
     }
 
     template<typename T1, typename T2>
     inline bool
     writeCmd(const char *cmd, const T1 v1, const T2 v2)
     {
-        return rtFile_.write(cmd) && rtFile_.write(v1, " ", " ") &&
-            rtFile_.write(v2, "\n");
+        const PWP_INT wd = (isAsciiEncoding() ? -1 : 30);
+        return rtFile_.write(cmd, wd, ' ') && rtFile_.write(v1, " ", " ") &&
+            rtFile_.write(v2) &&
+            rtFile_.write("\n");
+    }
+
+    template<typename T>
+    inline bool
+    writeCmd(const char *cmd, const std::vector<T> &vec)
+    {
+        const PWP_INT wd = (isAsciiEncoding() ? -1 : 30);
+        bool ret = rtFile_.write(cmd, wd, ' ');
+        if (ret) {
+            for (auto&& v : vec) {
+                if (!rtFile_.write(v, 0, " ")) {
+                    ret = false;
+                    break;
+                }
+            }
+        }
+        return ret && rtFile_.write("\n");
+    }
+
+    template<>
+    inline bool
+    writeCmd(const char *cmd, const std::vector<std::string> &vec)
+    {
+        const PWP_INT wd = (isAsciiEncoding() ? -1 : 30);
+        bool ret = rtFile_.write(cmd, wd, ' ');
+        if (ret) {
+            for (auto && v : vec) {
+                if (isAsciiEncoding() && !rtFile_.write(" ")) {
+                    ret = false;
+                    break;
+                }
+                if (!rtFile_.write(v.c_str(), wd, ' ')) {
+                    ret = false;
+                    break;
+                }
+            }
+        }
+        return ret && rtFile_.write("\n");
     }
 
     inline bool
     writeCmd(const char *cmd, const char *val)
     {
-        return rtFile_.write(cmd) && rtFile_.write(" ") &&
-            rtFile_.write(val) && rtFile_.write("\n");
+        const PWP_INT wd = (isAsciiEncoding() ? -1 : 30);
+        return rtFile_.write(cmd, wd, ' ') &&
+            (isAsciiEncoding() ? rtFile_.write(" ") : true) &&
+            rtFile_.write(val, wd, ' ') &&
+            rtFile_.write("\n");
+    }
+
+    inline bool
+    writeCmd(const char *cmd)
+    {
+        const PWP_INT wd = (isAsciiEncoding() ? -1 : 30);
+        return rtFile_.write(cmd, wd, ' ') && rtFile_.write("\n");
     }
 
     inline bool
@@ -90,17 +143,20 @@ private:
     }
 
     inline bool
-    writeIndexList(const CaeUnsElementData &ed, const char *eol = " ")
+    writeIndexList(const PWGM_ELEMDATA &ed, const char *eol)
     {
-        const PWP_UINT32 vertCnt = ed.vertCount();
+        const PWP_UINT32 vertCnt = ed.vertCnt;
         bool ret = true;
         for (PWP_UINT32 ii = 0; ii < vertCnt - 1; ++ii) {
-            if (!rtFile_.write(ed.indexAt(ii), " ")) {
+            if (!rtFile_.write(ed.index[ii], " ")) {
                 ret = false;
                 break;
             }
         }
-        if (!rtFile_.write(ed.indexAt(vertCnt - 1), eol)) {
+        if (ret && !rtFile_.write(ed.index[vertCnt - 1])) {
+            ret = false;
+        }
+        if (ret && (0 != eol) && !rtFile_.write(eol)) {
             ret = false;
         }
         return ret;

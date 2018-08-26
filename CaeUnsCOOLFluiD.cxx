@@ -185,14 +185,13 @@ CaeUnsCOOLFluiD::writeHeader()
     const PWP_UINT32 sPolyOrder = (isFV_ ? 0 : 1);
     const PWP_UINT32 dim = (isDimension3D() ? 3 : 2);
     return rtFile_.isOpen() &&
-        rtFile_.write("!COOLFLUID_VERSION 2013.9\n") &&
-        rtFile_.write("!CFMESH_FORMAT_VERSION 1.3\n") &&
+        writeCmd("!COOLFLUID_VERSION", "2013.9") &&
+        writeCmd("!CFMESH_FORMAT_VERSION", "1.3") &&
         writeCmd("!NB_DIM", dim) &&
         writeCmd("!NB_EQ", numEq_) &&
         writeCmd("!NB_NODES", numVerts, Zero) &&
         writeCmd("!NB_STATES", numStates, Zero) &&
         writeCmd("!NB_ELEM", totElemCnt) &&
-        //rtFile_.write("!NB_ELEM_TYPES ") && rtFile_.write(totElemCnt, "\n") &&
         writeCmd("!GEOM_POLYORDER", gPolyOrder) &&
         writeCmd("!SOL_POLYORDER", sPolyOrder) &&
         writeHeaderElemCntDetails(ecDetails);
@@ -208,70 +207,39 @@ CaeUnsCOOLFluiD::writeHeaderElemCntDetails(const PWGM_ELEMCOUNTS &details)
     //!NB_STATES_PER_TYPE #listOf(nbLinesS|nbTriagS|nbQuadS|nbTetraS|nbPyramS|nbPrismS|nbHexaS)
 
     PWP_UINT32 nbElemTypes = 0;
-    std::ostringstream elemTypes;
-    std::ostringstream nbElemPerType;
-    std::ostringstream nbNodesPerType;
-    std::ostringstream nbStatesPerType;
-    elemTypes << "!ELEM_TYPES";
-    nbElemPerType << "!NB_ELEM_PER_TYPE";
-    nbNodesPerType << "!NB_NODES_PER_TYPE";
-    nbStatesPerType << "!NB_STATES_PER_TYPE";
+    std::vector<std::string> elemTypes;
+    std::vector<PWP_UINT32> nbElemPerType;
+    std::vector<PWP_UINT32> nbNodesPerType;
+    std::vector<PWP_UINT32> nbStatesPerType;
+    auto f = [&nbElemTypes, &elemTypes, &nbElemPerType, &nbNodesPerType,
+                &nbStatesPerType](const PWP_UINT32 cnt, const char *type,
+                    const PWP_UINT32 numNodes, const bool isFiniteVol)
+                {
+                    if (0 != cnt) {
+                        ++nbElemTypes;
+                        elemTypes.push_back(type);
+                        nbElemPerType.push_back(cnt);
+                        nbNodesPerType.push_back(numNodes);
+                        nbStatesPerType.push_back(isFiniteVol ? 1 : numNodes);
+                    }
+                };
     if (isDimension3D()) {
-        if (0 != PWGM_ECNT_Hex(details)) {
-            ++nbElemTypes;
-            elemTypes << " Hexa";
-            nbElemPerType << " " << PWGM_ECNT_Hex(details);
-            nbNodesPerType << " 8";
-            nbStatesPerType << (isFV_ ? " 1" : " 8");
-        }
-        if (0 != PWGM_ECNT_Tet(details)) {
-            ++nbElemTypes;
-            elemTypes << " Tetra";
-            nbElemPerType << " " << PWGM_ECNT_Tet(details);
-            nbNodesPerType << " 4";
-            nbStatesPerType << (isFV_ ? " 1" : " 4");
-        }
-        if (0 != PWGM_ECNT_Wedge(details)) {
-            ++nbElemTypes;
-            elemTypes << " Prism";
-            nbElemPerType << " " << PWGM_ECNT_Wedge(details);
-            nbNodesPerType << " 6";
-            nbStatesPerType << (isFV_ ? " 1" : " 6");
-        }
-        if (0 != PWGM_ECNT_Pyramid(details)) {
-            ++nbElemTypes;
-            elemTypes << " Pyram";
-            nbElemPerType << " " << PWGM_ECNT_Pyramid(details);
-            nbNodesPerType << " 5";
-            nbStatesPerType << (isFV_ ? " 1" : " 5");
-        }
+        f(PWGM_ECNT_Hex(details), "Hexa", 8, isFV_);
+        f(PWGM_ECNT_Tet(details), "tetra", 4, isFV_);
+        f(PWGM_ECNT_Wedge(details), "Prism", 6, isFV_);
+        f(PWGM_ECNT_Pyramid(details), "Pyram", 5, isFV_);
     }
     else {
-        if (0 != PWGM_ECNT_Quad(details)) {
-            ++nbElemTypes;
-            elemTypes << " Quad";
-            nbElemPerType << " " << PWGM_ECNT_Quad(details);
-            nbNodesPerType << " 4";
-            nbStatesPerType << (isFV_ ? " 1" : " 4");
-        }
-        if (0 != PWGM_ECNT_Tri(details)) {
-            ++nbElemTypes;
-            elemTypes << " Triag";
-            nbElemPerType << " " << PWGM_ECNT_Tri(details);
-            nbNodesPerType << " 3";
-            nbStatesPerType << (isFV_ ? " 1" : " 3");
-        }
+        f(PWGM_ECNT_Quad(details), "Quad", 4, isFV_);
+        f(PWGM_ECNT_Tri(details), "Triag", 3, isFV_);
     }
-    elemTypes << "\n";
-    nbElemPerType << "\n";
-    nbNodesPerType << "\n";
-    nbStatesPerType << "\n";
+
     return (0 < nbElemTypes) &&
         writeCmd("!NB_ELEM_TYPES", nbElemTypes) &&
-        rtFile_.write(elemTypes.str().c_str()) &&
-        rtFile_.write(nbElemPerType.str().c_str()) &&
-        rtFile_.write(nbNodesPerType.str().c_str()) &&
-        rtFile_.write(nbStatesPerType.str().c_str());
+        writeCmd("!ELEM_TYPES", elemTypes) &&
+        writeCmd("!NB_ELEM_PER_TYPE", nbElemPerType) &&
+        writeCmd("!NB_NODES_PER_TYPE", nbNodesPerType) &&
+        writeCmd("!NB_STATES_PER_TYPE", nbStatesPerType);
 }
 
 bool
@@ -280,7 +248,7 @@ CaeUnsCOOLFluiD::writeNodes()
     //!LIST_NODE
     //x y [z]   (repeat NB_NODES times)
     bool ret = progressBeginStep(model_.vertexCount()) &&
-        rtFile_.write("!LIST_NODE\n");
+        writeCmd("!LIST_NODE");
     if (ret) {
         CaeUnsVertex vert(model_);
         while (vert.isValid()) {
@@ -309,44 +277,52 @@ CaeUnsCOOLFluiD::writeNodes()
 bool
 CaeUnsCOOLFluiD::writeElements()
 {
+    //!LIST_ELEM
+    // NodeNdxList StateList   (repeat NB_ELEM times)
     bool ret = progressBeginStep(model_.elementCount()) &&
-        rtFile_.write("!LIST_ELEM\n");
+        writeCmd("!LIST_ELEM");
     if (ret) {
-        //!LIST_ELEM
-        // NodeNdxList StateList   (repeat NB_ELEM times)
-        CaeUnsEnumElementData ed;
+        CaeUnsElementData ed;
         CaeUnsElement elem(model_);
         while (elem.isValid()) {
-            if (!elem.data(ed)) {
-                ret = false;
-                break;
-            }
-            // write NodeNdxList
-            if (!writeIndexList(ed)) {
-                ret = false;
-                break;
-            }
-            // write StateList
-            if (isFV_) {
-                if (!rtFile_.write(elem.index(), "\n")) {
-                    ret = false;
-                    break;
-                }
-            }
-            else {
-                if (!writeIndexList(ed, "\n")) {
-                    ret = false;
-                    break;
-                }
-            }
-            if (!progressIncrement()) {
+            if (!elem.data(ed) || !writeElement(ed, elem.index()) ||
+                !progressIncrement()) {
                 ret = false;
                 break;
             }
             ++elem;
         }
+        if (ret && isBinaryEncoding() && !rtFile_.write("\n")) {
+            ret = false;
+        }
     }
     return progressEndStep() && ret;
+}
+
+bool
+CaeUnsCOOLFluiD::writeElement(const PWGM_ELEMDATA &ed, const PWP_UINT32 eNdx)
+{
+    // NodeNdxList StateList
+    const bool isAscii = isAsciiEncoding();
+    // write NodeNdxList
+    bool ret = writeIndexList(ed, (isAscii ? " " : 0));
+    if (ret) {
+        // write StateList
+        if (isFV_) {
+            // One state value per volume elem (= global cell index)
+            const PWGM_ELEMDATA edFV{ PWGM_ELEMTYPE_SIZE, 1, {}, {eNdx} };
+            if (!writeIndexList(edFV, (isAscii ? "\n" : 0))) {
+                ret = false;
+            }
+        }
+        else {
+            // One state value per volume elem node (= global vert index)
+            if (!writeIndexList(ed, (isAscii ? "\n" : 0))) {
+                ret = false;
+            }
+        }
+    }
+    return ret;
 }
 
 bool
@@ -418,18 +394,17 @@ CaeUnsCOOLFluiD::streamFace(const PWGM_FACESTREAM_DATA &data)
             writeCmd("!TRS_NAME", makeTRSName(cond)) &&
             writeCmd("!NB_TRs", (PWP_UINT)1) &&
             writeCmd("!NB_GEOM_ENTS", patch.elementCount()) &&
-            rtFile_.write("!GEOM_TYPE Face\n") &&
-            rtFile_.write("!LIST_GEOM_ENT\n");
+            writeCmd("!GEOM_TYPE", "Face") &&
+            writeCmd("!LIST_GEOM_ENT");
     }
     if (ret) {
-        const CaeUnsElementData ed(data.elemData);
-        const PWP_UINT32 vertCnt = ed.vertCount();
+        //const CaeUnsElementData ed(data.elemData);
+        const PWP_UINT32 vertCnt = data.elemData.vertCnt;
         const PWP_UINT32 stateCnt = (isFV_ ? 1 : vertCnt);
+        const bool isAscii = isAsciiEncoding();
         // ElemNumNodes ElemNumStates NodeNdxList StateList
         ret = rtFile_.write(vertCnt, " ") && rtFile_.write(stateCnt, " ") &&
-            writeIndexList(ed) &&
-            (isFV_ ? rtFile_.write(data.owner.cellIndex, "\n")
-                   : writeIndexList(ed, "\n"));
+            writeElement(data.elemData, data.owner.cellIndex);
     }
     if (!progressIncrement()) {
         ret = false;
