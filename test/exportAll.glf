@@ -2,65 +2,75 @@
 
 package require PWI_Glyph 2.18.1
 
-set scriptDir [file dirname [info script]]
+namespace eval App {
+    variable scriptDir      [file dirname [info script]]
+    variable baseName       "TrivialMesh"
+    variable defaultPwFile  [file join $scriptDir "${baseName}.pw"]
 
-pw::Application setUndoMaximumLevels 5
-pw::Application reset
-pw::Application markUndoLevel {Journal Reset}
+  proc run {} {
+    variable scriptDir
+    variable baseName
 
-pw::Application clearModified
+    set blks [getBlocks]
 
-pw::Application reset -keep Clipboard
-set ioPW [pw::Application begin ProjectLoader]
-  $ioPW initialize [file join $scriptDir TrivialMesh.pw]
-  $ioPW setAppendMode false
-  $ioPW setRepairMode Defer
-  $ioPW load
-$ioPW end
-unset ioPW
-pw::Application resetUndoLevels
+    foreach attr {FiniteVolume FiniteElement} {
+      pw::Application setCAESolverAttribute {CalculationType} $attr
+      pw::Application markUndoLevel {Set Solver Attributes}
+      set ve [string range $attr 6 6]  ;# extract the 'V' or 'E' from $attr
+      foreach fmt {ASCII Binary} {
+        set deco [string toupper "F${ve}M_${fmt}"]
+        set outName "${baseName}_${deco}_Pointwise.CFmesh"
+        puts "Exporting: '$outName'"
+        set ioCAE [pw::Application begin CaeExport $blks]
+          $ioCAE initialize -strict -type CAE [file join $scriptDir $outName]
+          $ioCAE setAttribute FileFormat $fmt
+          $ioCAE verify
+          $ioCAE write
+        $ioCAE end
+        unset ioCAE
+      }
+    }
+  }
 
-set blks [pw::Entity sort [pw::Grid getAll -type pw::Block]]
-puts "blks=[list $blks]"
+  proc getBlocks {} {
+    variable defaultPwFile
+    set blks [pw::Entity sort [pw::Grid getAll -type pw::Block]]
+    if { 0 != [llength $blks] } {
+      puts "INFO: Exporting blocks already loaded."
+      variable baseName
+      set baseName "Preloaded"
+    } elseif { ![file exists $defaultPwFile] } {
+      return -code error "Default pw file does not exist: '$defaultPwFile'"
+    } elseif { [catch {loadPwFile $defaultPwFile} err] } {
+      return -code error "Could not load default pw file: '$defaultPwFile'\nERROR: '$err'"
+    } else {
+      puts "INFO: Loaded default pw file: '$defaultPwFile'"
+      set blks [pw::Entity sort [pw::Grid getAll -type pw::Block]]
+    }
+    if { 0 == [llength $blks] } {
+      return -code error "No blocks to export"
+    }
 
-pw::Application setCAESolverAttribute {CalculationType} {FiniteVolume}
-pw::Application markUndoLevel {Set Solver Attributes}
+    #set blkNames [list]
+    #foreach blk $blks {
+    #  lappend blkNames [list [$blk getName]]
+    #}
+    #puts "Found [llength $blks] blocks: [join $blkNames { }]"
 
+    return $blks
+  }
 
-set ioCAE [pw::Application begin CaeExport $blks]
-  $ioCAE initialize -strict -type CAE [file join $scriptDir junk-ASCII-FVM.CFmesh]
-  $ioCAE setAttribute FileFormat ASCII
-  $ioCAE verify
-  $ioCAE write
-$ioCAE end
-unset ioCAE
+  proc loadPwFile { pwFile } {
+    pw::Application reset
+    set ioPW [pw::Application begin ProjectLoader]
+      $ioPW initialize $pwFile
+      $ioPW setAppendMode false
+      $ioPW setRepairMode Defer
+      $ioPW load
+    $ioPW end
+    unset ioPW
+    return 1
+  }
+}
 
-
-set ioCAE [pw::Application begin CaeExport $blks]
-  $ioCAE initialize -strict -type CAE [file join $scriptDir junk-BINARY-FVM.CFmesh]
-  $ioCAE setAttribute FileFormat Binary
-  $ioCAE verify
-  $ioCAE write
-$ioCAE end
-unset ioCAE
-
-
-pw::Application setCAESolverAttribute {CalculationType} {FiniteElement}
-pw::Application markUndoLevel {Set Solver Attributes}
-
-set ioCAE [pw::Application begin CaeExport $blks]
-  $ioCAE initialize -strict -type CAE [file join $scriptDir junk-ASCII-FEM.CFmesh]
-  $ioCAE setAttribute FileFormat ASCII
-  $ioCAE verify
-  $ioCAE write
-$ioCAE end
-unset ioCAE
-
-
-set ioCAE [pw::Application begin CaeExport $blks]
-  $ioCAE initialize -strict -type CAE [file join $scriptDir junk-BINARY-FEM.CFmesh]
-  $ioCAE setAttribute FileFormat Binary
-  $ioCAE verify
-  $ioCAE write
-$ioCAE end
-unset ioCAE
+App::run
