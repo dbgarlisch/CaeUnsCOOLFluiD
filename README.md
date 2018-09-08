@@ -1,7 +1,7 @@
 # CaeUnsCOOLFluiD
-COOLFluiD [CAE Plugin][2] for [Pointwise][1]
-[COOLFluiD Wiki][3]
+COOLFluiD [CAE Exporter Plugin][2] for [Pointwise][1]
 
+For more information about the solver, see the [COOLFluiD Wiki][3]
 
 ![Pointwise Logo][pwLogo]
 
